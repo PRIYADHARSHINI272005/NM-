@@ -1,0 +1,63 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = "yourdockerhubusername/yourapp"
+        DOCKER_TAG = "${env.BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Get the latest code from your repo
+                git 'https://github.com/yourusername/yourrepo.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build docker image with tag as build number
+                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                // Run container to execute tests (adjust command as per your tests)
+                sh "docker run --rm ${DOCKER_IMAGE}:${DOCKER_TAG} npm test"
+            }
+        }
+
+        stage('Push Image to Docker Hub') {
+            steps {
+                script {
+                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                        docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                // Example: deploy by SSHing into server and restarting container
+                sh '''
+                ssh youruser@yourserver "
+                    docker pull ${DOCKER_IMAGE}:${DOCKER_TAG} &&
+                    docker stop yourapp || true &&
+                    docker rm yourapp || true &&
+                    docker run -d --name yourapp -p 80:3000 ${DOCKER_IMAGE}:${DOCKER_TAG}
+                "
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
