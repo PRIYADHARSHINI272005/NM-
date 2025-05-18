@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = "yourusername/yourapp"
+        DOCKER_TAG = "${env.BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git 'https://github.com/yourrepo/yourapp.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                // Run your test commands here
+                sh 'docker run --rm ${DOCKER_IMAGE}:${DOCKER_TAG} ./run-tests.sh'
+            }
+        }
+
+        stage('Push') {
+            steps {
+                script {
+                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                        docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                // Example deploy using docker-compose or kubectl commands
+                sh 'ssh user@server "docker pull ${DOCKER_IMAGE}:${DOCKER_TAG} && docker stop app || true && docker rm app || true && docker run -d --name app ${DOCKER_IMAGE}:${DOCKER_TAG}"'
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
