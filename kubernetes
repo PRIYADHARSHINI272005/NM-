@@ -1,0 +1,11 @@
+stage('Deploy to Kubernetes') {
+    steps {
+        script {
+            // Use kubectl to apply the deployment
+            sh '''
+            kubectl set image deployment/yourapp-deployment yourapp=yourdockerhubusername/yourapp:${DOCKER_TAG} --record
+            kubectl rollout status deployment/yourapp-deployment
+            '''
+        }
+    }
+}
